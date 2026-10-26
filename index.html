@@ -147,6 +147,7 @@
   #error button { margin-top:8px; padding:7px 14px; border-radius:7px; border:1px solid #c96a5f; background:#fff; cursor:pointer; }
   .oculto { display:none !important; }
   .pel-fila .rec { color:#08304f; font-size:12.8px; display:block; margin-top:3px; line-height:1.45; }
+  .recModo { display:block; margin-top:6px; background:#fff8e1; border:1px solid #e3cf8a; color:#5b4a08; border-radius:8px; padding:7px 9px; font-size:13px; line-height:1.45; }
 </style>
 </head>
 <body>
@@ -1170,6 +1171,7 @@ function pintar(){
       (modoPeligro === "niebla" ? "<span> · Cada municipio se pinta según su visibilidad: la niebla se concentra en el interior y los valles; en la costa suele ni formarse</span>"
         : modoPeligro === "ciclon" ? "<span> · Cada municipio se pinta según su distancia al ciclón: el nivel baja al alejarse del centro</span>"
         : PEL_TIERRA.includes(modoPeligro) ? "<span> · Cada municipio se pinta con el color de su nivel en esa zona</span>" : "") +
+      (function(){ let mx = 0; for (const rr of resultados[diaSel]){ const v = rr.res[modoPeligro]; if (v && v.n !== null && v.n > mx) mx = v.n; } return (mx >= 1 && RECO[modoPeligro] && RECO[modoPeligro][mx]) ? '<span class="recModo"><b>' + PEL_NOM[modoPeligro] + " · nivel " + nomNivel(modoPeligro, mx) + ":</b> " + RECO[modoPeligro][mx] + "</span>" : ""; })() +
       '<button id="btnTodos">Ver todos los peligros</button>';
     document.getElementById("btnTodos").addEventListener("click", salirModoPeligro);
   } else {
