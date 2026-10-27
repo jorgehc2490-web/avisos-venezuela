@@ -15,19 +15,96 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background:#f2f5f7; color:#1c2b33; }
-  header { background:linear-gradient(120deg,#07263d,#0a3a5c 55%,#0f6aa8); color:#fff; padding:13px 16px 11px; }
-  .marca { display:flex; align-items:center; gap:12px; }
-  .logoTile { width:47px; height:47px; flex:0 0 auto; filter:drop-shadow(0 2px 5px rgba(0,0,0,.35)); }
-  .logoTile svg { width:100%; height:100%; display:block; }
-  .wordmark .wm1 { margin:0; font-size:23px; font-weight:800; letter-spacing:2.5px; line-height:1; }
-  .wordmark .wm2 { font-size:8.8px; letter-spacing:2.4px; opacity:.78; margin-top:4px; font-weight:600; }
-  .prod { margin-left:auto; text-align:right; }
-  .prod .prod1 { font-size:16.5px; font-weight:800; letter-spacing:1.6px; }
-  .prod .prod2 { font-size:11px; opacity:.85; margin-top:3px; }
-  header .autor { margin-top:10px; padding-top:8px; border-top:1px solid rgba(255,255,255,.18); font-size:12.5px; opacity:.92; }
-  @media (max-width:560px){ .prod .prod2 { display:none; } .wordmark .wm1 { font-size:20px; } .prod .prod1 { font-size:14.5px; } .wordmark .wm2 { letter-spacing:1.6px; } }
-  .sponsor { margin:10px 12px 0; }
+  :root { --ink:#1c2b33; --navy:#0a2f47; --glass:rgba(8,29,43,.87); --glass-b:rgba(255,255,255,.16); --gold:#ffc63a; }
+  html { scroll-behavior:smooth; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background:#081c2b; color:var(--ink); overflow-x:clip; }
+  .oculto { display:none !important; }
+
+  /* ===== avisos de carga / error: pastillas flotantes ===== */
+  #cargando { position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:3000; background:var(--glass); color:#fff; padding:11px 20px; border-radius:999px; font-size:14px; font-weight:600; box-shadow:0 8px 26px rgba(0,0,0,.4); border:1px solid var(--glass-b); white-space:nowrap; }
+  #error { display:none; position:fixed; top:64px; left:50%; transform:translateX(-50%); z-index:3000; width:min(92vw,480px); padding:13px 15px; background:#fdecea; border:1px solid #e5a49c; color:#7c1d12; border-radius:12px; font-size:14px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
+  #error button { margin-top:8px; padding:7px 14px; border-radius:7px; border:1px solid #c96a5f; background:#fff; cursor:pointer; }
+
+  /* ===== HÉROE: el mapa manda ===== */
+  .hero { position:relative; height:calc(100dvh - 56px); min-height:500px; background:#0d2f42; }
+  #map { position:absolute; inset:0; height:auto; margin:0; border:none; border-radius:0; z-index:0; }
+  .leaflet-container { font-family:inherit; }
+  .leaflet-control-zoom { border:none !important; border-radius:11px !important; overflow:hidden; box-shadow:0 5px 16px rgba(0,0,0,.4) !important; }
+  .leaflet-control-zoom a { background:var(--glass) !important; color:#fff !important; border:none !important; width:34px !important; height:34px !important; line-height:34px !important; }
+  .leaflet-bottom.leaflet-right { bottom:14px; right:10px; }
+  .leaflet-control-attribution { background:rgba(255,255,255,.6) !important; font-size:9px !important; color:#5b7180 !important; padding:0 4px; }
+  .leaflet-control-attribution a { color:#5b7180 !important; }
+  .lbl { background:transparent; border:none; box-shadow:none; font-size:10.5px; font-weight:700; color:#17394d; text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff; }
+  .lbl::before { display:none; }
+  .estDiv { background:transparent; border:none; }
+  .est-marc { width:36px; height:36px; border-radius:50%; background:#0b5fa5; border:2px solid #fff; box-shadow:0 1px 5px rgba(0,0,0,.45); color:#fff; font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; }
+  .leaflet-popup-content { font-size:13.5px; line-height:1.5; }
+  .est-pop .tit { color:#0b3a57; font-size:14.5px; font-weight:700; }
+  .est-pop .fuente { color:#5b7180; font-size:11.5px; }
+  .munIcon { background:none; border:none; }
+  .munPill { background:#0b5fa5; color:#fff; font-size:11px; font-weight:700; padding:1px 6px; border-radius:999px; border:1.5px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.4); white-space:nowrap; text-align:center; cursor:pointer; }
+
+  /* ===== barra superior flotante ===== */
+  .topbar { position:absolute; top:10px; left:10px; right:10px; z-index:1200; display:flex; justify-content:space-between; align-items:flex-start; gap:8px; pointer-events:none; max-width:calc(100vw - 20px); }
+  .topbar > * { pointer-events:auto; }
+  .brand { display:flex; align-items:center; gap:9px; background:var(--glass); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); border:1px solid var(--glass-b); border-radius:15px; padding:7px 13px 7px 8px; color:#fff; box-shadow:0 5px 18px rgba(0,0,0,.35); }
+  .brand .logoTile { width:34px; height:34px; flex:0 0 auto; }
+  .brand .logoTile svg { width:100%; height:100%; display:block; }
+  .brand .b1 { font-size:15.5px; font-weight:800; letter-spacing:2.2px; line-height:1; }
+  .brand .b2 { font-size:9.5px; font-weight:700; letter-spacing:1.8px; color:var(--gold); margin-top:3.5px; }
+  .dias { display:flex; flex:0 1 auto; min-width:0; gap:3px; background:var(--glass); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); border:1px solid var(--glass-b); border-radius:999px; padding:4px; box-shadow:0 5px 18px rgba(0,0,0,.35); }
+  .dias button { flex:0 0 auto; border:none; background:transparent; color:#dcebf5; border-radius:999px; padding:6px 11px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; white-space:nowrap; }
+  .dias button small { display:block; font-weight:500; font-size:10px; opacity:.78; margin-top:1px; }
+  .dias button.act { background:#fff; color:var(--navy); }
+  .dias button.act small { color:#46606f; opacity:1; }
+  @media (max-width:620px){ .brand .b2 { display:none; } .brand { padding:6px 10px 6px 7px; } .brand .logoTile { width:30px; height:30px; } .brand .b1 { font-size:14px; letter-spacing:1.6px; } .dias button { padding:5px 8px; font-size:12px; } .dias button small { font-size:9px; } }
+  @media (max-width:374px){ .dias button small { display:none; } .dias button { padding:6px 7px; } .brand { gap:6px; } .brand .b1 { letter-spacing:1.1px; } }
+
+  /* ===== muelle de peligros (chips con punto de nivel) ===== */
+  /* v3: la franja de chips no captura rueda/toque fuera de los propios botones,
+     para que el zoom del mapa funcione también sobre esa zona. */
+  .dockChips { position:absolute; top:74px; left:10px; right:10px; z-index:1190; pointer-events:none; -webkit-mask-image:linear-gradient(90deg, #000 calc(100% - 26px), transparent); mask-image:linear-gradient(90deg, #000 calc(100% - 26px), transparent); }
+  #chips { pointer-events:none; }
+  #chips button { pointer-events:auto; }
+  #chips { display:flex; gap:6px; overflow-x:auto; padding:2px 22px 2px 2px; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+  #chips::-webkit-scrollbar { display:none; }
+  #chips button { flex:0 0 auto; display:inline-flex; align-items:center; border:1px solid var(--glass-b); background:var(--glass); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); color:#eef6fb; border-radius:999px; padding:8px 13px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; box-shadow:0 3px 12px rgba(0,0,0,.3); }
+  #chips button .dot { width:9px; height:9px; border-radius:50%; margin-right:7px; flex:none; box-shadow:0 0 0 1.5px rgba(255,255,255,.55); }
+  #chips button.act { background:#fff; color:var(--navy); border-color:#fff; }
+  #chips button.act .dot { box-shadow:0 0 0 1.5px rgba(10,47,71,.28); }
+
+  /* ===== barra de modo fenómeno ===== */
+  #modoBar { position:absolute; top:122px; left:10px; right:10px; z-index:1180; margin:0; padding:9px 12px; background:rgba(234,243,250,.95); border:1px solid #9fc3dd; border-radius:12px; font-size:13px; color:#0b3a57; display:flex; align-items:center; gap:10px; flex-wrap:wrap; box-shadow:0 6px 20px rgba(0,0,0,.28); }
+  #modoBar button { margin-left:auto; border:1px solid #0f5d8f; background:#0f5d8f; color:#fff; border-radius:7px; padding:6px 12px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; }
+  .recModo { display:block; margin-top:6px; background:#fff8e1; border:1px solid #e3cf8a; color:#5b4a08; border-radius:8px; padding:7px 9px; font-size:13px; line-height:1.45; }
+
+  /* ===== botones y popovers del mapa (Capas / Leyenda) ===== */
+  .mapBtns { position:absolute; right:10px; bottom:64px; z-index:1190; display:flex; flex-direction:column; gap:8px; }
+  .mapBtn { background:var(--glass); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); color:#fff; border:1px solid var(--glass-b); border-radius:12px; padding:9px 13px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit; box-shadow:0 4px 14px rgba(0,0,0,.32); }
+  .mapBtn.act { background:#fff; color:var(--navy); }
+  .zoomBtn { font-size:19px; font-weight:800; line-height:1; padding:8px 13px; text-align:center; }
+  .pop { position:absolute; right:10px; bottom:118px; z-index:1250; width:min(326px, calc(100vw - 20px)); max-height:48dvh; overflow-y:auto; background:rgba(255,255,255,.98); border-radius:16px; box-shadow:0 14px 38px rgba(0,0,0,.42); padding:13px 13px 11px; color:var(--ink); }
+  .popTit { font-size:11px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; color:#5b7180; margin-bottom:9px; }
+  .popNota { font-size:11.5px; color:#5b7180; margin-top:9px; line-height:1.45; }
+  #obsChips { display:flex; gap:6px; flex-wrap:wrap; }
+  #obsChips button { border:1.5px solid #0b5fa5; background:#fff; color:#0b5fa5; border-radius:999px; padding:6px 13px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; }
+  #obsChips button.act { background:#0b5fa5; color:#fff; }
+  .radarctl { display:flex; align-items:center; gap:9px; flex-wrap:wrap; background:#f2f7fa; border:1px solid #dde7ee; border-radius:10px; padding:8px 10px; margin-top:9px; font-size:12.5px; }
+  .radarctl label { font-weight:600; color:#23404f; }
+  .radarctl .nota { font-size:11.5px; color:#5b7180; flex-basis:100%; line-height:1.45; }
+  .radarctl button { border:1px solid #b9cbd6; background:#fff; border-radius:7px; padding:5px 12px; font-size:12.5px; cursor:pointer; font-family:inherit; }
+  .leyenda { display:flex; flex-wrap:wrap; gap:6px; }
+  .leyenda span { font-size:11.5px; padding:3px 9px; border-radius:20px; font-weight:600; }
+
+  /* ===== selector Provincia / Municipio flotante ===== */
+  .pronFloat { position:absolute; left:10px; bottom:14px; z-index:1190; display:flex; align-items:center; gap:7px; background:var(--glass); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); border:1px solid var(--glass-b); border-radius:999px; padding:4px; box-shadow:0 5px 18px rgba(0,0,0,.35); }
+  .pronLbl { font-size:10px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:#cfe2ee; padding-left:9px; }
+  #pronChips { display:flex; gap:3px; }
+  #pronChips button { border:none; background:transparent; color:#dcebf5; border-radius:999px; padding:6px 12px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit; }
+  #pronChips button.act { background:#fff; color:var(--navy); }
+
+  /* ===== patrocinador ===== */
+  .sponsor { margin:14px 12px 2px; }
   .adcard { display:flex; align-items:center; gap:11px; background:#ffffff; border:1px solid #d9dfe3; border-radius:11px; padding:9px 12px; box-shadow:0 1px 3px rgba(8,48,79,.07); text-align:left; }
   .adcard.pub { border:1.5px dashed #c9b458; background:#fffdf2; }
   .adico { flex:0 0 auto; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:15px; }
@@ -37,90 +114,24 @@
   .adx { display:block; font-size:12px; color:#5b7180; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .adgo { flex:0 0 auto; color:#b6c2c9; font-size:20px; font-weight:700; }
   a.adcard { text-decoration:none; }
-  .aviso { background:#fff7e0; border:1px solid #ecd27a; color:#5d4c07; font-size:12.5px; line-height:1.45; padding:9px 12px; margin:10px 12px 0; border-radius:8px; }
-  .dias { display:flex; gap:8px; padding:12px 12px 0; }
-  .dias button { flex:1; padding:10px 4px; border:1px solid #b9cbd6; background:#fff; border-radius:9px; font-size:14px; font-weight:600; color:#0f5d8f; cursor:pointer; }
-  .dias button small { display:block; font-weight:400; font-size:11.5px; color:#5b7180; margin-top:2px; }
-  .dias button.act { background:#0f5d8f; color:#fff; border-color:#0f5d8f; }
-  .dias button.act small { color:#cfe6f5; }
-  .leyenda { display:flex; flex-wrap:wrap; gap:6px; padding:10px 12px 0; }
-  .leyenda span { font-size:11.5px; padding:3px 9px; border-radius:20px; font-weight:600; }
-  .radarctl { display:flex; align-items:center; gap:10px; padding:10px 12px 0; font-size:13.5px; flex-wrap:wrap; }
-  .radarctl label { font-weight:600; color:#23404f; }
-  .radarctl .nota { font-size:12px; color:#5b7180; flex-basis:100%; }
-  .radarctl button { border:1px solid #b9cbd6; background:#fff; border-radius:7px; padding:5px 12px; font-size:13px; cursor:pointer; }
-  #map { height:62vh; min-height:360px; margin:10px 12px 0; border-radius:10px; border:1px solid #c3d2da; z-index:0; }
-  .tablaWrap { margin:0 12px; overflow-x:auto; -webkit-overflow-scrolling:touch; background:#fff; border:1px solid #d5e0e6; border-radius:10px; }
-  table.ghwo { border-collapse:collapse; width:100%; min-width:440px; font-size:13.5px; }
-  table.ghwo th, table.ghwo td { padding:8px 7px; border-bottom:1px solid #e7eef2; text-align:center; }
-  table.ghwo tr:last-child td { border-bottom:none; }
-  table.ghwo th { background:#eef4f8; color:#0b3a57; font-size:12.5px; }
-  table.ghwo th small { display:block; font-weight:400; font-size:11px; color:#5b7180; }
-  table.ghwo th[data-dia], table.mini th[data-dia] { cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px; }
-  table.ghwo td.pelnom { text-align:left; font-weight:600; color:#17394d; }
-  table.ghwo tr.pelrow { cursor:pointer; }
-  table.ghwo tr.pelrow:active td { background:#f2f8fc; }
-  table.ghwo tr.activa td { background:#e3eff8; }
-  table.ghwo td.diacur, table.ghwo th.diacur { box-shadow:inset 0 0 0 2px #9fc3dd; }
-  .pill { display:inline-block; min-width:66px; padding:6px 8px; border-radius:7px; font-weight:700; font-size:12px; }
-  #modoBar { margin:10px 12px 0; padding:9px 12px; background:#eaf3fa; border:1px solid #9fc3dd; border-radius:9px; font-size:13.5px; color:#0b3a57; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-  #modoBar button { margin-left:auto; border:1px solid #0f5d8f; background:#0f5d8f; color:#fff; border-radius:7px; padding:6px 12px; font-size:13px; font-weight:600; cursor:pointer; }
-  table.mini { border-collapse:collapse; width:100%; font-size:12.5px; }
-  table.mini th, table.mini td { padding:5px 6px; border-bottom:1px solid #eef3f6; text-align:center; }
-  table.mini tr:last-child td { border-bottom:none; }
-  table.mini th { color:#0b3a57; font-size:11.5px; background:#f5f9fb; }
-  table.mini td:first-child, table.mini th:first-child { text-align:left; font-weight:600; }
-  table.mini td.diacur, table.mini th.diacur { background:#eaf3fa; }
-  .pillMini { display:inline-block; width:32px; height:18px; border-radius:5px; border:1px solid rgba(0,0,0,.16); vertical-align:middle; }
-  .btnImg { width:100%; border:none; background:#0f5d8f; color:#fff; border-radius:9px; padding:11px 12px; font-size:14px; font-weight:700; cursor:pointer; }
-  .btnImg:active { background:#08304f; }
-  .lbl { background:transparent; border:none; box-shadow:none; font-size:10.5px; font-weight:700; color:#17394d; text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff; }
-  .lbl::before { display:none; }
-  .estDiv { background:transparent; border:none; }
-  .est-marc { width:36px; height:36px; border-radius:50%; background:#0b5fa5; border:2px solid #fff; box-shadow:0 1px 5px rgba(0,0,0,.45); color:#fff; font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; }
-  .leaflet-popup-content { font-size:13.5px; line-height:1.5; }
-  .est-pop .tit { color:#0b3a57; font-size:14.5px; font-weight:700; }
-  .est-pop .fuente { color:#5b7180; font-size:11.5px; }
-  h2.sec { font-size:16px; margin:18px 12px 6px; color:#0b3a57; }
-  .chipsWrap { display:flex; align-items:flex-start; gap:8px; margin:12px 12px 8px; }
-  .chipsTit { font-size:13px; font-weight:700; color:#0b3a57; padding-top:7px; white-space:nowrap; }
-  #chips, #obsChips { display:flex; gap:6px; overflow-x:auto; padding:2px 0; scrollbar-width:none; }
-  #chips::-webkit-scrollbar, #obsChips::-webkit-scrollbar { display:none; }
-  #chips button, #obsChips button { flex:0 0 auto; border:1.5px solid #0b5fa5; background:#fff; color:#0b5fa5; border-radius:999px; padding:6px 12px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; }
-  #chips button.act, #obsChips button.act { background:#0b5fa5; color:#fff; }
-  .anaHead { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin:18px 12px 6px; }
-  .anaHead h2.sec { margin:0; }
-  .anaHead .anaTabs { margin-bottom:0; }
-  .ytCard { display:flex; align-items:center; gap:12px; margin:0 12px 8px; background:#fff; border:1px solid #d5e0e6; border-radius:12px; padding:10px 14px; text-decoration:none; color:#16303f; }
-  .ytCard .ytIco { width:44px; height:44px; border-radius:50%; background:#c4302b; color:#fff; display:flex; align-items:center; justify-content:center; font-size:19px; flex:0 0 auto; }
-  .ytCard b { font-size:15px; }
-  .ytCard small { color:#5b7180; font-size:12.5px; }
-  .ytCard .ytFlecha { margin-left:auto; font-size:24px; color:#9fb3c8; }
-  .videoWrap { position:relative; margin:0 12px; padding-top:56.25%; border-radius:12px; overflow:hidden; background:#000; }
-  .videoWrap iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
-  .anaTabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
-   .anaTabs button { border:1.5px solid #c6d6e0; background:#fff; color:#33475b; border-radius:999px;
-     padding:5px 13px; font-size:13px; font-weight:700; cursor:pointer; }
-   .anaTabs button.act { background:#0f4c81; border-color:#0f4c81; color:#fff; }
-  .anaImgBox { position:relative; border-radius:8px; overflow:hidden; background:#0d2f42; }
-  .anaImgBox img { display:block; width:100%; }
-  .anaImgBox .anaChartImg { position:absolute; inset:0; height:100%; }
-   .anaWrap { position:relative; border-radius:8px; overflow:hidden; line-height:0; }
-   .anaWrap img { display:block; width:100%; }
-   .anaWrap .anaOver { position:absolute; inset:0; height:100%; }
-   .munIcon { background:none; border:none; }
-   .munPill { background:#0b5fa5; color:#fff; font-size:11px; font-weight:700; padding:1px 6px;
-     border-radius:999px; border:1.5px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.4);
-     white-space:nowrap; text-align:center; cursor:pointer; }
-   .videoNota { margin:6px 14px 0; font-size:12.5px; color:#5b7180; }
-  #lista { margin:0 12px; background:#fff; border:1px solid #d5e0e6; border-radius:10px; overflow:hidden; }
-  .fila { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid #e7eef2; cursor:pointer; font-size:14.5px; }
-  .fila:last-child { border-bottom:none; }
-  .fila .pto { width:14px; height:14px; border-radius:50%; flex:none; border:1px solid rgba(0,0,0,.18); }
-  .fila .nom { flex:1; font-weight:600; }
-  .fila .niv { font-size:12px; font-weight:700; padding:3px 9px; border-radius:20px; }
-  .fila .pel { font-size:12px; color:#5b7180; display:block; font-weight:400; }
-  #detalle { margin:0 12px; background:#fff; border:1px solid #d5e0e6; border-radius:10px; overflow:hidden; }
+
+  /* ===== hoja inferior (panel deslizable) ===== */
+  .sheet { position:relative; z-index:1300; margin-top:12px; background:#f4f8fa; border-radius:20px 20px 0 0; box-shadow:0 -10px 34px rgba(0,0,0,.38); padding:10px 0 10px; }
+  @media (min-width:1100px){ .sheet { padding-left:calc((100vw - 1064px)/2); padding-right:calc((100vw - 1064px)/2); } }
+  .grab { width:44px; height:5px; border-radius:3px; background:#c3d2da; margin:2px auto 10px; }
+  .aviso { background:#fff7e0; border:1px solid #ecd27a; color:#5d4c07; font-size:12.5px; line-height:1.45; padding:9px 12px; margin:0 12px; border-radius:10px; }
+  .credito { text-align:center; font-size:12px; color:#5b7180; margin:9px 12px 0; }
+  .modelos { text-align:center; color:#33506b; font-size:12.5px; font-weight:600; margin:7px 0 0; }
+  .sheetTabs { position:sticky; top:0; z-index:60; display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; padding:10px 12px 9px; background:#f4f8fa; }
+  .sheetTabs::-webkit-scrollbar { display:none; }
+  .sheetTabs button { flex:1 0 auto; border:1.5px solid #c6d6e0; background:#fff; color:#33475b; border-radius:999px; padding:8px 15px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .sheetTabs button.act { background:var(--navy); border-color:var(--navy); color:#fff; }
+  .secPane { padding-bottom:8px; }
+  h2.sec { font-size:12.5px; text-transform:uppercase; letter-spacing:1.1px; margin:16px 12px 7px; color:#5b7180; }
+  .secPane > h2.sec:first-child, .secPane > .anaHead:first-child { margin-top:4px; }
+
+  /* ===== detalle (tarjeta) ===== */
+  #detalle { margin:0 12px; background:#fff; border:1px solid #d5e0e6; border-radius:14px; overflow:hidden; box-shadow:0 2px 10px rgba(8,48,79,.06); }
   #detalle .cab { padding:12px; color:#fff; }
   #detalle .cab .pn { font-size:18px; font-weight:700; }
   #detalle .cab .pn2 { font-size:13px; opacity:.95; }
@@ -130,31 +141,110 @@
   .pel-fila .pn3 { font-weight:600; }
   .pel-fila .niv3 { font-weight:700; }
   .pel-fila .det { color:#51626c; font-size:12.8px; display:block; margin-top:1px; }
-  .panel { margin:0 12px; background:#fff; border:1px solid #d5e0e6; border-radius:10px; padding:11px 13px; font-size:13.5px; line-height:1.55; }
+  .pel-fila .rec { color:#08304f; font-size:12.8px; display:block; margin-top:3px; line-height:1.45; }
+  table.mini { border-collapse:collapse; width:100%; font-size:12.5px; }
+  table.mini th, table.mini td { padding:5px 6px; border-bottom:1px solid #eef3f6; text-align:center; }
+  table.mini tr:last-child td { border-bottom:none; }
+  table.mini th { color:#0b3a57; font-size:11.5px; background:#f5f9fb; }
+  table.mini td:first-child, table.mini th:first-child { text-align:left; font-weight:600; }
+  table.mini td.diacur, table.mini th.diacur { background:#eaf3fa; }
+  table.mini th[data-dia] { cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px; }
+  .pillMini { display:inline-block; width:32px; height:18px; border-radius:5px; border:1px solid rgba(0,0,0,.16); vertical-align:middle; }
+  .btnImg { width:100%; border:none; background:#0f5d8f; color:#fff; border-radius:9px; padding:11px 12px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .btnImg:active { background:#08304f; }
+
+  /* ===== lista de provincias ===== */
+  #lista { margin:0 12px; background:#fff; border:1px solid #d5e0e6; border-radius:14px; overflow:hidden; }
+  .fila { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid #e7eef2; cursor:pointer; font-size:14.5px; }
+  .fila:last-child { border-bottom:none; }
+  .fila .pto { width:14px; height:14px; border-radius:50%; flex:none; border:1px solid rgba(0,0,0,.18); }
+  .fila .nom { flex:1; font-weight:600; }
+  .fila .niv { font-size:12px; font-weight:700; padding:3px 9px; border-radius:20px; }
+  .fila .pel { font-size:12px; color:#5b7180; display:block; font-weight:400; }
+
+  /* ===== tabla de riesgos ===== */
+  .tablaWrap { margin:0 12px; overflow-x:auto; -webkit-overflow-scrolling:touch; background:#fff; border:1px solid #d5e0e6; border-radius:14px; }
+  table.ghwo { border-collapse:collapse; width:100%; min-width:440px; font-size:13.5px; }
+  table.ghwo th, table.ghwo td { padding:8px 7px; border-bottom:1px solid #e7eef2; text-align:center; }
+  table.ghwo tr:last-child td { border-bottom:none; }
+  table.ghwo th { background:#eef4f8; color:#0b3a57; font-size:12.5px; }
+  table.ghwo th small { display:block; font-weight:400; font-size:11px; color:#5b7180; }
+  table.ghwo th[data-dia] { cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px; }
+  table.ghwo td.pelnom { text-align:left; font-weight:600; color:#17394d; }
+  table.ghwo tr.pelrow { cursor:pointer; }
+  table.ghwo tr.pelrow:active td { background:#f2f8fc; }
+  table.ghwo tr.activa td { background:#e3eff8; }
+  table.ghwo td.diacur, table.ghwo th.diacur { box-shadow:inset 0 0 0 2px #9fc3dd; }
+  .pill { display:inline-block; min-width:66px; padding:6px 8px; border-radius:7px; font-weight:700; font-size:12px; }
+
+  /* ===== paneles secundarios ===== */
+  .panel { margin:0 12px; background:#fff; border:1px solid #d5e0e6; border-radius:14px; padding:11px 13px; font-size:13.5px; line-height:1.55; }
   .panel a { color:#0f5d8f; font-weight:600; text-decoration:none; }
   .panel li { margin:5px 0; }
   details.panel { padding:0; }
   details.panel summary { padding:11px 13px; cursor:pointer; font-weight:700; color:#0b3a57; }
   details.panel .cuerpo { padding:0 13px 11px; }
-  footer { margin:16px 12px 22px; font-size:12px; color:#5b7180; text-align:center; line-height:1.6; }
+  #frMapa svg { width:100%; height:auto; display:block; border-radius:10px; }
+  .frNota { font-size:12.5px; color:#5b7180; margin:8px 2px 0; }
+  #frTabs small { font-weight:400; opacity:.75; }
+  .anaHead { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin:16px 12px 7px; }
+  .anaHead h2.sec { margin:0; }
+  .anaTabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+  .anaTabs button { border:1.5px solid #c6d6e0; background:#fff; color:#33475b; border-radius:999px; padding:5px 13px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .anaTabs button.act { background:#0f4c81; border-color:#0f4c81; color:#fff; }
+  .anaImgBox { position:relative; border-radius:8px; overflow:hidden; background:#0d2f42; }
+  .anaImgBox img { display:block; width:100%; }
+  .anaImgBox .anaChartImg { position:absolute; inset:0; height:100%; }
+  .anaWrap { position:relative; border-radius:8px; overflow:hidden; line-height:0; }
+  .anaWrap img { display:block; width:100%; }
+  .anaWrap .anaOver { position:absolute; inset:0; height:100%; }
+  .ytCard { display:flex; align-items:center; gap:12px; margin:0 12px 8px; background:#fff; border:1px solid #d5e0e6; border-radius:12px; padding:10px 14px; text-decoration:none; color:#16303f; }
+  .ytCard .ytIco { width:44px; height:44px; border-radius:50%; background:#c4302b; color:#fff; display:flex; align-items:center; justify-content:center; font-size:19px; flex:0 0 auto; }
+  .ytCard b { font-size:15px; }
+  .ytCard small { color:#5b7180; font-size:12.5px; }
+  .ytCard .ytFlecha { margin-left:auto; font-size:24px; color:#9fb3c8; }
+  .videoWrap { position:relative; margin:0 12px; padding-top:56.25%; border-radius:12px; overflow:hidden; background:#000; }
+  .videoWrap iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .videoNota { margin:6px 14px 0; font-size:12.5px; color:#5b7180; }
+
+  footer { margin:0; padding:18px 14px 28px; font-size:12px; color:#9fb8c9; background:#081c2b; text-align:center; line-height:1.6; }
+
+  /* ===== v2 móvil: cabecera apilada. Marca arriba y la píldora de días a ancho
+     completo debajo, con los tres días en tercios iguales: a 390 px la fila
+     única desbordaba y «Pasado mañana» quedaba cortado a la derecha. ===== */
+  @media (max-width:620px){
+    .topbar { flex-direction:column; align-items:flex-start; }
+    .dias { align-self:stretch; }
+    .dias button { flex:1 1 0; padding-left:4px; padding-right:4px; }
+    .dockChips { top:118px; }
+    #modoBar { top:168px; }
+  }
+
+
+  /* ===== Venezuela: barra de instalación (PWA) y enlaces en paneles ===== */
   .installBar { display:flex; align-items:center; gap:12px; margin:16px 12px 0; background:#0a3a5c; color:#fff; border-radius:11px; padding:12px 14px; box-shadow:0 1px 3px rgba(8,48,79,.22); }
   .installBar p { margin:0; flex:1 1 auto; font-size:14px; line-height:1.45; }
   .installBar p span { opacity:.85; font-size:12.5px; }
   .installBar #installBtn { flex:0 0 auto; border:none; background:#fff; color:#0a3a5c; font-weight:700; font-size:13.5px; border-radius:8px; padding:9px 14px; cursor:pointer; font-family:inherit; }
   .installBar #installClose { flex:0 0 auto; border:none; background:transparent; color:#fff; opacity:.75; font-size:15px; cursor:pointer; padding:4px 6px; font-family:inherit; }
-  #cargando { margin:14px 12px; padding:14px; background:#fff; border:1px solid #d5e0e6; border-radius:10px; text-align:center; font-size:14.5px; }
-  #error { display:none; margin:14px 12px; padding:14px; background:#fdecea; border:1px solid #e5a49c; color:#7c1d12; border-radius:10px; font-size:14px; }
-  #error button { margin-top:8px; padding:7px 14px; border-radius:7px; border:1px solid #c96a5f; background:#fff; cursor:pointer; }
-  .oculto { display:none !important; }
-  .pel-fila .rec { color:#08304f; font-size:12.8px; display:block; margin-top:3px; line-height:1.45; }
-  .recModo { display:block; margin-top:6px; background:#fff8e1; border:1px solid #e3cf8a; color:#5b4a08; border-radius:8px; padding:7px 9px; font-size:13px; line-height:1.45; }
+  .panel a { color:#0f5d8f; font-weight:600; text-decoration:none; }
+  .panel li { margin:5px 0; }
+  details.panel { padding:0; }
+  details.panel summary { padding:11px 13px; cursor:pointer; font-weight:700; color:#0b3a57; }
+  details.panel .cuerpo { padding:0 13px 11px; }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="marca">
-    <div class="logoTile"><svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="LABMET">
+<div id="cargando">Cargando datos de los modelos…</div>
+<div id="error"></div>
+
+<div id="app" class="oculto">
+  <section class="hero">
+    <div id="map"></div>
+    <div class="topbar">
+      <div class="brand">
+        <div class="logoTile"><svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="LABMET">
   <circle cx="32" cy="32" r="30.5" fill="#ffffff"/>
   <g transform="translate(32,31.5) scale(0.42) translate(-100,-88)"><g fill="#16283e">
     <circle cx="82" cy="93" r="15"/><circle cx="100" cy="80" r="19.5"/><circle cx="118" cy="93" r="13.5"/>
@@ -163,45 +253,26 @@
   <polygon points="107,60 87,93 97,93 89,116 113,82 102,82" fill="#ffffff"/></g>
   <circle cx="32" cy="32" r="30.5" fill="none" stroke="#ffffff" stroke-opacity=".35"/>
 </svg></div>
-    <div class="wordmark">
-      <h1 class="wm1">LABMET</h1>
-      <div class="wm2">LABORATORIO METEOROLÓGICO</div>
-    </div>
-    <div class="prod">
-      <div class="prod1">AVISOS VENEZUELA</div>
-      <div class="prod2">Niveles de riesgo por estado</div>
-    </div>
-  </div>
-  <div class="autor">Creado por el meteorólogo MSc. JORGE FÉLIX HERNÁNDEZ CAPOTE</div>
-</header>
-
-<div class="sponsor" id="adTop"></div>
-
-<div class="aviso"><b>Aviso importante:</b> producto informativo de LABMET elaborado a partir de modelos numéricos. <b>No es un aviso oficial</b>: los avisos oficiales en Venezuela los emite el INAMEH y Protección Civil.</div>
-
-<div id="cargando">Cargando datos de los modelos…</div>
-<div id="error"></div>
-
-<div id="app" class="oculto">
-  <div class="dias" id="dias">
+        <div><div class="b1">LABMET</div><div class="b2">AVISOS VENEZUELA</div></div>
+      </div>
+      <div class="dias" id="dias">
     <button data-dia="0">Hoy<small></small></button>
     <button data-dia="1">Mañana<small></small></button>
     <button data-dia="2">Pasado mañana<small></small></button>
   </div>
-
-  <div class="leyenda" id="leyenda"></div>
-
-  <div class="chipsWrap">
-    <span class="chipsTit">Peligro:</span>
-    <div id="chips"></div>
-  </div>
-
-  <div class="chipsWrap">
-    <span class="chipsTit">Observación:</span>
-    <div id="obsChips"></div>
-  </div>
-
-  <div id="obsPanel">
+    </div>
+    <div class="dockChips"><div id="chips"></div></div>
+    <div id="modoBar" class="oculto"></div>
+    <div class="mapBtns">
+      <button class="mapBtn zoomBtn" id="btnZoomMas" type="button" aria-label="Acercar el mapa">+</button>
+      <button class="mapBtn zoomBtn" id="btnZoomMenos" type="button" aria-label="Alejar el mapa">−</button>
+      <button class="mapBtn" id="btnCapas" type="button">Capas</button>
+      <button class="mapBtn" id="btnLeyenda" type="button">Leyenda</button>
+    </div>
+    <div class="pop oculto" id="popCapas">
+      <div class="popTit">Capas del mapa</div>
+      <div id="obsChips"></div>
+      <div id="obsPanel">
     <div class="radarctl oculto" id="ctlRadar">
       <input type="checkbox" id="radarChk" class="oculto">
       <button id="radarPlay" class="oculto">⏸ Pausar</button>
@@ -242,28 +313,42 @@
       <span class="nota">Capas del tiempo actual de OpenWeatherMap sobre el mapa. Con una capa activa, el mapa se muestra sin los colores de alerta, como con el radar o el satélite.</span>
     </div>
   </div>
+      <div class="popNota">Con radar, satélite o una capa activa, el mapa se muestra sin los colores de alerta.</div>
+    </div>
+    <div class="pop oculto" id="popLeyenda">
+      <div class="popTit">Niveles de riesgo</div>
+      <div class="leyenda" id="leyenda"></div>
+    </div>
+  </section>
 
-  <div id="map"></div>
-  <p style="margin:6px 14px 0; font-size:12.5px; color:#5b7180">Cada estado muestra el color de su fenómeno más significativo (el mar va en su franja costera norte). Elija el peligro en la barra de arriba (o en la tabla) para pintar el mapa solo por ese fenómeno, y toque un estado para ver su detalle aquí debajo.</p>
+  <div class="sponsor" id="adTop"></div>
 
-  <div id="modoBar" class="oculto"></div>
-
-  <h2 class="sec">Detalle por estado</h2>
+  <main class="sheet">
+    <div class="grab"></div>
+    <div class="aviso"><b>Aviso importante:</b> producto informativo de LABMET elaborado a partir de modelos numéricos. <b>No es un aviso oficial</b>: los avisos oficiales en Venezuela los emite el INAMEH y Protección Civil.</div>
+    <div class="credito">Creado por el meteorólogo MSc. JORGE FÉLIX HERNÁNDEZ CAPOTE</div>
+    <nav class="sheetTabs">
+      <button data-sec="detalle" class="act" type="button">Detalle</button>
+      <button data-sec="riesgos" type="button">Riesgos</button>
+      <button data-sec="analisis" type="button">Análisis</button>
+      <button data-sec="mas" type="button">Más</button>
+    </nav>
+    <section class="secPane" id="sec-detalle">
+      <h2 class="sec" id="detalleTitulo">Detalle por estado</h2>
   <div id="detalle"></div>
-
-  <h2 class="sec">Riesgos por peligro</h2>
+      <h2 class="sec" id="listaTitulo">Estados por nivel de riesgo</h2>
+  <div id="lista"></div>
+      <h2 class="sec">Extremos del día</h2>
+  <div class="panel" id="extremos">—</div>
+    </section>
+    <section class="secPane oculto" id="sec-riesgos">
+      <h2 class="sec">Riesgos por peligro</h2>
   <div class="tablaWrap"><table class="ghwo" id="tablaPel"></table></div>
   <p style="margin:6px 14px 0; font-size:12px; color:#5b7180">Cada celda es el nivel más alto de ese peligro en todo el país ese día. Toque un peligro para verlo en el mapa estado por estado.</p>
   <div style="margin:10px 12px 0"><button class="btnImg" id="btnResumen">⬇ Descargar resumen del país (imagen)</button></div>
-
-  <h2 class="sec" id="listaTitulo">Estados por nivel de riesgo</h2>
-  <div id="lista"></div>
-
-  <h2 class="sec">Extremos del día</h2>
-  <div class="panel" id="extremos">—</div>
-
-
-  <div class="anaHead">
+    </section>
+    <section class="secPane oculto" id="sec-analisis">
+      <div class="anaHead">
     <h2 class="sec">Análisis de superficie · Atlántico tropical</h2>
     <div class="anaTabs">
       <button data-ana="0" class="act">Hoy</button>
@@ -278,13 +363,7 @@
     </div>
     <p class="videoNota" style="margin-left:0">Cartas oficiales de la TAFB (NHC/NOAA) para el Atlántico tropical y el Caribe: el análisis de superficie actual y los pronósticos a 24, 48 y 72 h — frentes, centros de presión y ondas tropicales que afectan al norte de Sudamérica y a la costa de Venezuela. <a id="anaFull" href="https://www.nhc.noaa.gov/tafb_latest/CAR_latest.gif" target="_blank" rel="noopener">Ver la carta completa ↗</a></p>
   </div>
-
-  <h2 class="sec">Último video de LABMET</h2>
-  <a class="ytCard" href="https://www.youtube.com/@labmet" target="_blank" rel="noopener"><span class="ytIco">▶</span><span><b>LABMET en YouTube</b><br><small>@labmet · Ver el canal y sus videos</small></span><span class="ytFlecha">›</span></a>
-  <div class="videoWrap"><iframe src="https://www.youtube-nocookie.com/embed/videoseries?list=UU0wTuI-BDkfWldVw5AS2r7Q" title="Último video de LABMET en YouTube" loading="lazy" allow="accelerometer; autoplay; encrypted-media; picture-in-picture; web-share" allowfullscreen></iframe></div>
-  <p class="videoNota">El reproductor muestra siempre el video más reciente del canal <a href="https://www.youtube.com/@labmet" target="_blank" rel="noopener">@labmet</a> y se actualiza solo con cada publicación. Si el reproductor no carga (YouTube a veces bloquea los archivos abiertos en local), toque la tarjeta de arriba para verlo en YouTube.</p>
-
-  <h2 class="sec">Radares y satélite del área</h2>
+<h2 class="sec">Radares y satélite del área</h2>
   <div class="panel">
     <p style="margin-top:2px">Venezuela no ofrece un mosaico público de radar que se pueda superponer a este mapa; estas son las fuentes oficiales y de referencia para la región:</p>
     <ul style="margin:6px 0; padding-left:18px">
@@ -295,7 +374,13 @@
     </ul>
   </div>
 
-  <h2 class="sec">Cómo se calcula</h2>
+    </section>
+    <section class="secPane oculto" id="sec-mas">
+      <h2 class="sec">Último video de LABMET</h2>
+  <a class="ytCard" href="https://www.youtube.com/@labmet" target="_blank" rel="noopener"><span class="ytIco">▶</span><span><b>LABMET en YouTube</b><br><small>@labmet · Ver el canal y sus videos</small></span><span class="ytFlecha">›</span></a>
+  <div class="videoWrap"><iframe src="https://www.youtube-nocookie.com/embed/videoseries?list=UU0wTuI-BDkfWldVw5AS2r7Q" title="Último video de LABMET en YouTube" loading="lazy" allow="accelerometer; autoplay; encrypted-media; picture-in-picture; web-share" allowfullscreen></iframe></div>
+  <p class="videoNota">El reproductor muestra siempre el video más reciente del canal <a href="https://www.youtube.com/@labmet" target="_blank" rel="noopener">@labmet</a> y se actualiza solo con cada publicación. Si el reproductor no carga (YouTube a veces bloquea los archivos abiertos en local), toque la tarjeta de arriba para verlo en YouTube.</p>
+<h2 class="sec">Cómo se calcula</h2>
   <details class="panel">
     <summary>Ver explicación breve</summary>
     <div class="cuerpo">
@@ -310,7 +395,9 @@
 </div>
   </details>
 
-  <div class="sponsor" id="adMid"></div>
+      <div class="sponsor" id="adMid"></div>
+    </section>
+  </main>
 </div>
 
 <section id="installBar" class="installBar oculto">
@@ -766,6 +853,7 @@ let puntosDia = {};    // puntosDia[día][municipio] = niveles por punto
 let capaZonas = null, capaPuntos = null; // municipios pintados por zona y su respaldo en puntos
 let resultados = {}; // resultados[dia][provIdx] = {res, max}
 let mapa = null, capaProv = null, capasPorId = {}, etiquetas = [];
+let capaNiebla = null; // puntos por zona de los peligros de tierra, visibles en su modo
 let franjas = []; // franjas costeras: {prov, costa:"N"|"S"|"C", linea}
 let modoPeligro = null;      // clave del peligro activo (modo peligro) o null
 let sateliteActivo = false;  // satélite encendido
@@ -915,7 +1003,10 @@ function actEtiquetas(){
 }
 
 function iniciarMapa(){
-  mapa = L.map("map", { scrollWheelZoom: false }).setView([8.2, -66.2], 6);
+  /* v3 (port de la presentación aprobada de Avisos Cuba): zoom con la rueda
+     del ratón ACTIVADO y control de zoom propio (+ / − flotantes), porque el
+     botón de Leaflet quedaba enterrado bajo la barra superior. */
+  mapa = L.map("map", { scrollWheelZoom: true, zoomControl: false, doubleClickZoom: true, touchZoom: true, dragging: true, zoomSnap: 0.25, zoomDelta: 0.5 }).setView([8.2, -66.2], 6);
   mapa.createPane("refPane");
   mapa.getPane("refPane").style.zIndex = 450;
   mapa.getPane("refPane").style.pointerEvents = "none";
@@ -950,11 +1041,15 @@ function iniciarMapa(){
       }
     }
   }
+  capaNiebla = L.layerGroup();
   mapa.on("zoomend", actEtiquetas);
   munCapa = L.layerGroup().addTo(mapa);
   mapa.on("zoomend", () => pintarMunicipios());
-  mapa.fitBounds(capaProv.getBounds(), { padding: [10, 10] });
+  mapa.fitBounds(capaProv.getBounds(), { padding: [6, 6] });
   actEtiquetas();
+  /* Reencuadre tras el primer pintado: con zoom fraccionario el país
+     llena el ancho de la pantalla en vez de quedar pequeño. */
+  setTimeout(() => { try { mapa.invalidateSize(); mapa.fitBounds(capaProv.getBounds(), { padding: [6, 6] }); actEtiquetas(); } catch(e){} }, 400);
 }
 
 function pintarPuntos(){
@@ -2165,5 +2260,87 @@ cargar();
   } catch (e) {}
 })();
 </script>
+
+<script>
+/* ===== Capa de presentación del rediseño v3 de LABMET (port de Avisos Cuba; no modifica el motor) ===== */
+(function(){
+  "use strict";
+  /* --- Puntos de nivel nacional en los chips de peligro --- */
+  function diaActual(){
+    var bs = document.querySelectorAll("#dias button"), i;
+    for (i = 0; i < bs.length; i++) if (bs[i].classList.contains("act")) return i;
+    return 0;
+  }
+  function decorarChips(){
+    try {
+      if (typeof resultados === "undefined" || !resultados || typeof maxNacional !== "function") return;
+      var d = diaActual();
+      document.querySelectorAll("#chips button").forEach(function(b){
+        var k = b.dataset.pel;
+        var dot = b.querySelector(".dot");
+        if (!k){ if (dot) dot.remove(); return; }
+        var n = maxNacional(k, d);
+        if (n === null || typeof NIVELES === "undefined" || !NIVELES[n]){ if (dot) dot.remove(); return; }
+        if (!dot){ dot = document.createElement("span"); dot.className = "dot"; b.insertBefore(dot, b.firstChild); }
+        dot.style.background = NIVELES[n].c;
+        b.title = "Nivel máximo hoy en el país: " + NIVELES[n].n;
+      });
+    } catch(e){}
+  }
+  var espera = setInterval(function(){
+    try { if (typeof resultados !== "undefined" && resultados){ decorarChips(); } } catch(e){}
+  }, 600);
+  setTimeout(function(){ clearInterval(espera); }, 45000);
+  document.addEventListener("click", function(e){
+    if (e.target.closest && (e.target.closest("#dias") || e.target.closest("#chips"))) setTimeout(decorarChips, 80);
+  });
+
+  /* --- Popovers Capas / Leyenda --- */
+  function pop(idBtn, idPop){
+    var btn = document.getElementById(idBtn), pop = document.getElementById(idPop);
+    if (!btn || !pop) return;
+    btn.addEventListener("click", function(ev){
+      ev.stopPropagation();
+      var ab = !pop.classList.contains("oculto");
+      document.querySelectorAll(".pop").forEach(function(p){ p.classList.add("oculto"); });
+      document.querySelectorAll(".mapBtn").forEach(function(b){ b.classList.remove("act"); });
+      if (!ab){ pop.classList.remove("oculto"); btn.classList.add("act"); }
+    });
+    pop.addEventListener("click", function(ev){ ev.stopPropagation(); });
+  }
+  pop("btnCapas", "popCapas"); pop("btnLeyenda", "popLeyenda");
+  /* v3: botones flotantes + / − de zoom (además de la rueda, el doble clic y el pellizco) */
+  document.getElementById("btnZoomMas").addEventListener("click", function(){ if (mapa) mapa.zoomIn(); });
+  document.getElementById("btnZoomMenos").addEventListener("click", function(){ if (mapa) mapa.zoomOut(); });
+  document.addEventListener("click", function(){
+    document.querySelectorAll(".pop").forEach(function(p){ p.classList.add("oculto"); });
+    document.querySelectorAll(".mapBtn").forEach(function(b){ b.classList.remove("act"); });
+  });
+
+  /* --- Pestañas de la hoja inferior --- */
+  var tabs = document.querySelectorAll(".sheetTabs button");
+  function abrirSec(sec){
+    tabs.forEach(function(b){ b.classList.toggle("act", b.dataset.sec === sec); });
+    document.querySelectorAll(".secPane").forEach(function(s){ s.classList.toggle("oculto", s.id !== "sec-" + sec); });
+  }
+  tabs.forEach(function(b){ b.addEventListener("click", function(){ abrirSec(b.dataset.sec); }); });
+
+  /* --- Al llenarse el detalle, mostrar su pestaña y llevarla a la vista --- */
+  var det = document.getElementById("detalle");
+  if (det && "MutationObserver" in window){
+    var t;
+    new MutationObserver(function(){
+      if (!det.innerHTML.trim()) return;
+      clearTimeout(t);
+      t = setTimeout(function(){
+        abrirSec("detalle");
+        var tit = document.getElementById("detalleTitulo");
+        if (tit) tit.scrollIntoView({ behavior:"smooth", block:"start" });
+      }, 60);
+    }).observe(det, { childList:true });
+  }
+})();
+</script>
+
 </body>
 </html>
